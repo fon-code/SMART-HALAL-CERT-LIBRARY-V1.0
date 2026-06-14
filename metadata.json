@@ -1,0 +1,8 @@
+{
+  "name": "SMART HALAL CERT LIBRARY V1.0",
+  "description": "ระบบบริหารจัดการ Halal Certificate อัจฉริยะ ครบวงจร",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
