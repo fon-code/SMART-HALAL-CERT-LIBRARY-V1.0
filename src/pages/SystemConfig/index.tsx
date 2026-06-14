@@ -147,8 +147,7 @@ const TABS = [
   { id: 'brands', label: 'Brand', icon: 'Tag', title: 'Brands', desc: 'Manage manufacturing and OEM branding.' },
   { id: 'customers', label: 'Customer', icon: 'Users', title: 'Customers', desc: 'Manage external client and partner profiles.' },
   { id: 'pdfTemplates', label: 'PDF Templates', icon: 'Printer', title: 'PDF FORM TEMPLATES', desc: 'Configure official document layouts and compliance headers.' },
-  { id: 'idFormats', label: 'ID Formats', icon: 'Barcode', title: 'ID FORMAT CONFIG', desc: 'Define auto-generation rules for system identifiers.' },
-  { id: 'googleSheets', label: 'GOOGLE SHEETS', icon: 'Database', title: 'GOOGLE SHEETS SYNC', desc: 'Manage Google Sheets database integrations.' }
+  { id: 'idFormats', label: 'ID Formats', icon: 'Barcode', title: 'ID FORMAT CONFIG', desc: 'Define auto-generation rules for system identifiers.' }
 ];
 
 const AVAILABLE_PAGES = ['Plan from Planning', 'Production Planning', 'Daily Problem', 'Master Item', 'Equipment Registry', 'STD Process'];
@@ -469,79 +468,6 @@ export default function SystemConfig() {
 
                 {/* CONTENT LIST */}
                 <div className="lg:col-span-9 flex flex-col gap-6 animate-fadeIn h-full">
-                    
-                    {activeTab === 'googleSheets' ? (
-                        <>
-                            {/* GOOGLE SHEETS SETUP CARDS */}
-                            <div className="bg-white rounded-3xl shadow-lg border border-[#eaeaec] p-8">
-                                <h4 className="text-[16px] font-black uppercase text-[#212c46] tracking-widest mb-2 flex items-center gap-2">
-                                    <ShieldCheck size={20} className="text-[#b7a159]" /> AUTHENTICATION
-                                </h4>
-                                <p className="text-[12px] font-medium text-[#7a8b95] mb-6">Connect your Google Account to authorize database synchronizations and create sheets automatically.</p>
-                                
-                                {hasAuth && userProfile ? (
-                                    <div className="p-4 border border-[#eaeaec] rounded-2xl flex items-center justify-between">
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-12 h-12 rounded-full border-2 border-[#b7a159] bg-[#f8f9fa] flex items-center justify-center font-black text-[#212c46] shadow-sm">
-                                                {userProfile.email ? userProfile.email[0].toUpperCase() : 'U'}
-                                            </div>
-                                            <div>
-                                                <h5 className="text-[13px] font-black text-[#212c46] leading-none mb-1">{userProfile.displayName || "Google Account Connected"}</h5>
-                                                <p className="text-[11px] font-bold text-[#b58c4f]">{userProfile.email}</p>
-                                            </div>
-                                        </div>
-                                        <button onClick={handleLogout} className="px-6 py-2 border border-[#932c2e]/20 text-[#932c2e] hover:bg-[#932c2e]/5 rounded-xl font-black text-[11px] uppercase tracking-widest transition-all">DISCONNECT</button>
-                                    </div>
-                                ) : (
-                                    <div className="flex justify-center">
-                                        <button onClick={handleLogin} className="w-full md:w-auto px-16 py-4 border border-[#eaeaec] bg-white hover:bg-gray-50 rounded-2xl flex items-center justify-center gap-3 transition-colors shadow-sm">
-                                            <svg viewBox="0 0 24 24" width="20" height="20" xmlns="http://www.w3.org/2000/svg">
-                                                <g transform="matrix(1, 0, 0, 1, 27.009001, -39.238998)">
-                                                <path fill="#4285F4" d="M -3.264 51.509 C -3.264 50.719 -3.334 49.969 -3.454 49.239 L -14.754 49.239 L -14.754 53.749 L -8.284 53.749 C -8.574 55.229 -9.424 56.479 -10.684 57.329 L -10.684 60.329 L -6.824 60.329 C -4.564 58.239 -3.264 55.159 -3.264 51.509 Z"/>
-                                                <path fill="#34A853" d="M -14.754 63.239 C -11.514 63.239 -8.804 62.159 -6.824 60.329 L -10.684 57.329 C -11.764 58.049 -13.134 58.489 -14.754 58.489 C -17.884 58.489 -20.534 56.379 -21.484 53.529 L -25.464 53.529 L -25.464 56.619 C -23.494 60.539 -19.444 63.239 -14.754 63.239 Z"/>
-                                                <path fill="#FBBC05" d="M -21.484 53.529 C -21.734 52.809 -21.864 52.039 -21.864 51.239 C -21.864 50.439 -21.724 49.669 -21.484 48.949 L -21.484 45.859 L -25.464 45.859 C -26.284 47.479 -26.754 49.299 -26.754 51.239 C -26.754 53.179 -26.284 54.999 -25.464 56.619 L -21.484 53.529 Z"/>
-                                                <path fill="#EA4335" d="M -14.754 43.989 C -12.984 43.989 -11.404 44.599 -10.154 45.789 L -6.734 42.369 C -8.804 40.429 -11.514 39.239 -14.754 39.239 C -19.444 39.239 -23.494 41.939 -25.464 45.859 L -21.484 48.949 C -20.534 46.099 -17.884 43.989 -14.754 43.989 Z"/>
-                                                </g>
-                                            </svg>
-                                            <span className="text-[13px] font-black uppercase text-[#212c46] tracking-widest pl-2">Sign in with Google</span>
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-
-                            <div className="bg-white rounded-3xl shadow-lg border border-[#eaeaec] p-8">
-                                <h4 className="text-[16px] font-black uppercase text-[#212c46] tracking-widest mb-2 flex items-center gap-2">
-                                    <Database size={20} className="text-[#b7a159]" /> SHEET SETUP & FORMATTING
-                                </h4>
-                                <p className="text-[12px] font-medium text-[#7a8b95] mb-6">Automatically format the target spreadsheet (Adds headers, freezes top row, and highlights column #d0e0e3).</p>
-                                
-                                <div className="flex flex-col md:flex-row items-end gap-4">
-                                    <div className="flex-1 w-full">
-                                        <label className="text-[11px] font-black text-[#212c46] uppercase tracking-widest block mb-2">SPREADSHEET ID</label>
-                                        <input 
-                                            type="text" 
-                                            value={spreadsheetIdField}
-                                            onChange={(e) => setSpreadsheetIdField(e.target.value)}
-                                            placeholder="e.g. 1L7smTyoFDIRaQk-NDivWTMwqQ52V4ezSfagWOlR6x0s" 
-                                            className="w-full bg-[#f8f9fa] border border-[#eaeaec] rounded-xl px-4 py-3 text-[12px] font-bold font-mono text-[#212c46] outline-none focus:border-[#b7a159] transition-all shadow-inner"
-                                        />
-                                    </div>
-                                    <button 
-                                        onClick={handleFormat}
-                                        disabled={!hasAuth || isFormatting} 
-                                        className={`px-8 py-3 rounded-xl font-black text-[12px] uppercase tracking-widest transition-all min-w-[140px] ${(!hasAuth || isFormatting) ? 'bg-[#eaeaec] text-[#a3acbe] cursor-not-allowed' : 'bg-[#b7a159] hover:bg-[#a18c46] text-white shadow-md'}`}
-                                    >
-                                        {isFormatting ? 'PROCESSING...' : 'RUN SETUP'}
-                                    </button>
-                                </div>
-                                {formatStatus && (
-                                    <p className={`mt-4 text-[11px] font-bold ${formatStatus.includes('Error') ? 'text-[#932c2e]' : 'text-[#657f4d]'}`}>
-                                        {formatStatus}
-                                    </p>
-                                )}
-                            </div>
-                        </>
-                    ) : (
                         <div className="bg-white rounded-3xl shadow-lg border border-[#eaeaec] overflow-hidden flex flex-col h-full">
                             <div className="px-8 py-5 border-b border-[#eaeaec] bg-[#f8f9fa] flex flex-col md:flex-row justify-between items-center gap-4">
                                 <div>
@@ -673,7 +599,6 @@ export default function SystemConfig() {
                                 </div>
                             </div>
                         </div>
-                    )}
                 </div>
             </div>
             

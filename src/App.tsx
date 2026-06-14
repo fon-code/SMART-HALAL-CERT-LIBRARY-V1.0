@@ -21,6 +21,10 @@ import AiCopilot from './pages/AiCopilot';
 import CompanyCalendar from './pages/CompanyCalendar';
 import DevPermit from './pages/DevPermit';
 import SystemConfig from './pages/SystemConfig';
+import GoogleSheetsSync from './pages/SystemConfig/GoogleSheetsSync';
+import BackgroundAutoSync from './pages/SystemConfig/BackgroundAutoSync';
+import SystemBackups from './pages/SystemConfig/SystemBackups';
+import ReportFormat from './pages/SystemConfig/ReportFormat';
 import SystemLogs from './pages/SystemLogs';
 import CertificateRepository from './pages/Certificates';
 import HalalCertificates from './pages/Certificates/Halal';
@@ -104,6 +108,26 @@ export default function App() {
               <Route path="/settings" element={
                 <ProtectedRoute isConfidential>
                   <SystemConfig />
+                </ProtectedRoute>
+              } />
+              <Route path="/settings/sheets-sync" element={
+                <ProtectedRoute isConfidential>
+                  <GoogleSheetsSync />
+                </ProtectedRoute>
+              } />
+              <Route path="/settings/auto-sync" element={
+                <ProtectedRoute isConfidential>
+                  <BackgroundAutoSync />
+                </ProtectedRoute>
+              } />
+              <Route path="/settings/backups" element={
+                <ProtectedRoute isConfidential>
+                  <SystemBackups />
+                </ProtectedRoute>
+              } />
+              <Route path="/settings/report-format" element={
+                <ProtectedRoute isConfidential>
+                  <ReportFormat />
                 </ProtectedRoute>
               } />
               <Route path="/permissions" element={

@@ -67,7 +67,11 @@ export const MENU_ITEMS: MenuItem[] = [
       { id: 'user_permission', name: 'USER PERMISSION', nameTh: 'สิทธิ์ผู้ใช้งาน', path: '/permissions' },
       { id: 'system_config', name: 'SYSTEM CONFIG', nameTh: 'ค่าคอนฟิกระบบ', path: '/settings' },
       { id: 'dev_permit', name: 'DEV PERMIT BETA', nameTh: 'สิทธิ์ผู้พัฒนา', path: '/dev-permit' },
-      { id: 'dev_logs', name: 'SYSTEM LOGS', nameTh: 'บันทึกระบบ', path: '/dev-logs' }
+      { id: 'dev_logs', name: 'SYSTEM LOGS', nameTh: 'บันทึกระบบ', path: '/dev-logs' },
+      { id: 'google_sheets_sync', name: 'GOOGLE SHEETS SYNC', nameTh: 'ซิงค์ Google Sheets', path: '/settings/sheets-sync' },
+      { id: 'background_auto_sync', name: 'AUTO SYNC', nameTh: 'ซิงค์อัตโนมัติ', path: '/settings/auto-sync' },
+      { id: 'system_backups', name: 'SYSTEM BACKUPS', nameTh: 'การสำรองข้อมูลระบบ', path: '/settings/backups' },
+      { id: 'report_format', name: 'REPORT FORMAT', nameTh: 'รูปแบบรายงาน', path: '/settings/report-format' }
     ]
   }
 ];
