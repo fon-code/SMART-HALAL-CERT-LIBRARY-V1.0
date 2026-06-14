@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
+import Breadcrumb from './Breadcrumb';
 import SecurityGuard from './SecurityGuard';
 import { useAuth } from '../context/AuthContext';
 import { PhoneCall, Mail, Bug } from 'lucide-react';
@@ -44,6 +45,7 @@ export default function Layout() {
         <Sidebar isCollapsed={isCollapsed} setIsCollapsed={setIsCollapsed} />
         <div className="flex flex-1 flex-col overflow-hidden relative">
           <Header />
+          <Breadcrumb />
           <div className="flex-1 custom-scrollbar overflow-y-auto flex flex-col min-h-0 relative">
             <div className="flex-1 flex flex-col w-full pt-0">
               <main className="flex-1 shrink-0 bg-transparent flex flex-col w-full relative z-0">

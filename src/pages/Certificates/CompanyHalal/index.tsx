@@ -1,13 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Building2, Plus, Search, FileText, CheckCircle2, Clock, 
   AlertTriangle, Download, Trash2, Edit, RefreshCw
 } from 'lucide-react';
 import { useLanguage } from '../../../context/LanguageContext';
+import SkeletonLoading from '../../../components/shared/SkeletonLoading';
 
 export default function CompanyHalalCertificates() {
   const { t } = useLanguage();
   const [searchTerm, setSearchTerm] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setIsLoading(false), 500);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Dummy Initial Data
   const [certs, setCerts] = useState([
@@ -30,6 +37,10 @@ export default function CompanyHalalCertificates() {
        status: 'Expiring Soon'
     }
   ]);
+
+  if (isLoading) {
+    return <SkeletonLoading layout="dashboard" />;
+  }
 
   return (
     <div className="flex flex-1 w-full flex-col animate-fadeIn bg-transparent space-y-4">

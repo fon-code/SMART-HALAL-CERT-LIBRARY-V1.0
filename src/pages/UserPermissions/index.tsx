@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import * as Icons from 'lucide-react';
 import { DraggableModal } from '../../components/shared/DraggableModal';
+import SkeletonLoading from '../../components/shared/SkeletonLoading';
 
 import { SYSTEM_MODULES } from '../../config/modules';
 
@@ -376,6 +377,12 @@ export default function UserPermission() {
   const [expandedModules, setExpandedModules] = useState<any>({ sr_so: true, vendors: true, analytics: true, inventory: true });
   const [confidentialityMap, setConfidentialityMap] = useState<any>({'settings': true, 'risk_management': true});
 
+  const [isLoading, setIsLoading] = useState(true);
+  useEffect(() => {
+    const timer = setTimeout(() => setIsLoading(false), 500);
+    return () => clearTimeout(timer);
+  }, []);
+
   const [users, setUsers] = useState([
     { id: 1, name: 'SOMCHAI WORKER', position: 'SALES MANAGER', email: 'somchai.w@salepro.com', avatar: 'https://i.pravatar.cc/150?img=11', isDev: false, permissions: { dashboard: [1, 2, 3, 4], analytics: [1, 2] } },
     { id: 2, name: 'SUDA QUALITY', position: 'QC SUPERVISOR', email: 'suda.q@salepro.com', avatar: 'https://i.pravatar.cc/150?img=5', isDev: false, permissions: { dashboard: [1] } },
@@ -403,6 +410,10 @@ export default function UserPermission() {
       }
     });
   };
+
+  if (isLoading) {
+    return <SkeletonLoading layout="dashboard" />;
+  }
 
   return (
     <div className="flex flex-1 w-full flex-col animate-fadeIn bg-transparent space-y-4">

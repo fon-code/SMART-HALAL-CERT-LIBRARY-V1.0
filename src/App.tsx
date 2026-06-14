@@ -25,6 +25,7 @@ import GoogleSheetsSync from './pages/SystemConfig/GoogleSheetsSync';
 import BackgroundAutoSync from './pages/SystemConfig/BackgroundAutoSync';
 import SystemBackups from './pages/SystemConfig/SystemBackups';
 import ReportFormat from './pages/SystemConfig/ReportFormat';
+import GmailIntegration from './pages/SystemConfig/GmailIntegration';
 import SystemLogs from './pages/SystemLogs';
 import CertificateRepository from './pages/Certificates';
 import HalalCertificates from './pages/Certificates/Halal';
@@ -128,6 +129,11 @@ export default function App() {
               <Route path="/settings/report-format" element={
                 <ProtectedRoute isConfidential>
                   <ReportFormat />
+                </ProtectedRoute>
+              } />
+              <Route path="/settings/gmail" element={
+                <ProtectedRoute isConfidential>
+                  <GmailIntegration />
                 </ProtectedRoute>
               } />
               <Route path="/permissions" element={

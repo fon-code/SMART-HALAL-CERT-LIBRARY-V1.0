@@ -11,12 +11,16 @@ import {
   Info, AlertOctagon, BellRing, History, MailWarning, FileClock, ClipboardList,
   Building2, Box, Globe, Globe2, ShieldAlert as MraIcon, Mail, UserCheck,
   FileSignature, Briefcase, MapPin, PlusCircle, PenTool, Link2, FileSearch, 
-  Check as CheckIcon, List, PieChart, Printer, Send, QrCode, RefreshCw
+  Check as CheckIcon, List, PieChart, Printer, Send, QrCode, RefreshCw, Camera
 } from 'lucide-react';
 import { DraggableModal } from '../../../components/shared/DraggableModal';
 import { CsvUpload } from '../../../components/shared/CsvUpload';
+import { CameraScanner } from '../../../components/shared/CameraScanner';
+import Swal from 'sweetalert2';
 import { HighlightText } from '../../../components/shared/HighlightText';
 import { CertificatePreviewModal } from '../../../components/shared/CertificatePreviewModal';
+import { initAuth, googleSignIn, logout, getAccessToken } from '../../../firebase';
+import { sendGmailMessage } from '../../../services/gmailService';
 
 const THEME = {
   bgMain: 'transparent',
@@ -510,18 +514,110 @@ function UserGuidePanel({ isOpen, onClose }: any) {
 
 const SupplierQuickRequestModal = ({ isOpen, onClose, cert, onConfirm }: any) => {
     const [customMsg, setCustomMsg] = useState('');
-    
+    const [recipientEmail, setRecipientEmail] = useState('fon.phichamon@gmail.com');
+    const [hasGmail, setHasGmail] = useState(false);
+    const [gmailUser, setGmailUser] = useState<any>(null);
+    const [isSending, setIsSending] = useState(false);
+    const [statusText, setStatusText] = useState('');
+    const [statusType, setStatusType] = useState<'SUCCESS' | 'ERROR' | ''>('');
+
     useEffect(() => {
         if (cert) {
             setCustomMsg(`เรียน แผนกตรวจสอบคุณภาพและรับรองด่านฮาลาลของ บริษัท ${cert.supplier},\n\nเนื่องด้วย ทางบริษัทฯ ตรวจพบว่าใบรับรองฮาลาล ของวัตถุดิบ ${cert.material} (รหัสใบอนุญาต: ${cert.certNo || 'N/A'}) กำลังจะหมดอายุหรือหมดอายุลงแล้วในวันที่ ${cert.expiryDate}.\n\nจึงใคร่ขอความอนุเคราะห์จากท่านในการจัดส่งใบรับรองฉบับปรับปรุงใหม่ล่าสุด เพื่อให้แน่ใจว่าการดำเนินการเป็นไปตามข้อกำหนดของฮาลาลที่ถูกต้อง\n\nขอแสดงความนับถือ,\nฝ่ายการประกันคุณภาพ (QA Quality Assurance Team)`);
+            
+            // Set recipient based on supplier name or default nicely
+            const slug = cert.supplier.toLowerCase().replace(/[^a-z]/g, '');
+            setRecipientEmail(`${slug || 'supplier'}@t-all-intelligence.com`);
         }
     }, [cert]);
+
+    useEffect(() => {
+        if (isOpen) {
+            initAuth(
+                (user) => {
+                    setHasGmail(true);
+                    setGmailUser(user);
+                },
+                () => {
+                    setHasGmail(false);
+                    setGmailUser(null);
+                }
+            );
+        }
+    }, [isOpen]);
+
+    const handleGmailSignIn = async () => {
+        try {
+            await googleSignIn();
+            initAuth(
+                (user) => {
+                    setHasGmail(true);
+                    setGmailUser(user);
+                }
+            );
+        } catch (e) {
+            console.error('Failed to sign in', e);
+        }
+    };
+
+    const handleSendAction = async () => {
+        if (!recipientEmail) {
+            setStatusType('ERROR');
+            setStatusText('โปรดกรอกที่อยู่อีเมลผู้รับ');
+            return;
+        }
+
+        setIsSending(true);
+        setStatusText('');
+        setStatusType('');
+
+        try {
+            if (hasGmail) {
+                const subject = `[Notification] เอกสารรับรองฮาลาลสำหรับวัตถุดิบ ${cert.material} กำลังจะหมดอายุ`;
+                await sendGmailMessage(recipientEmail, subject, customMsg);
+                
+                // Track in our log registry of Gmail Integration page
+                const savedLogs = localStorage.getItem('smartcert_gmail_logs');
+                const parsedLogs = savedLogs ? JSON.parse(savedLogs) : [];
+                const newLog = {
+                    id: `LOG-${Date.now()}`,
+                    recipient: recipientEmail,
+                    subject: subject,
+                    timestamp: new Date().toISOString(),
+                    status: 'SUCCESS',
+                };
+                localStorage.setItem('smartcert_gmail_logs', JSON.stringify([newLog, ...parsedLogs].slice(0, 50)));
+
+                setStatusType('SUCCESS');
+                setStatusText('อีเมลส่งออกจริงผ่านบริการ Gmail API สำเร็จแล้ว!');
+            } else {
+                // Mock fallback
+                setStatusType('SUCCESS');
+                setStatusText('ส่งอีเมลแจ้งเตือนจำลองในระบบเรียบร้อย (ไม่ได้ส่งจริงเนื่องจากไม่ได้เข้าสู่ระบบ)');
+            }
+
+            // Let parent component know to update system register and show toast
+            setTimeout(() => {
+                onConfirm(cert.id, customMsg, recipientEmail, hasGmail);
+                onClose();
+                setStatusText('');
+                setStatusType('');
+            }, 1800);
+
+        } catch (error: any) {
+            console.error(error);
+            setStatusType('ERROR');
+            setStatusText(`ส่งอีเมลล้มเหลว: ${error.message || 'ตรวจพบบัญชีไม่มีสิทธิ์เขียนอีเมล'}`);
+        } finally {
+            setIsSending(false);
+        }
+    };
 
     if (!isOpen || !cert) return null;
 
     return createPortal(
         <div id="quick-request-modal" className="fixed inset-0 z-[1500] flex items-center justify-center bg-[#212c46]/60 backdrop-blur-sm p-4">
-            <div className="bg-white rounded-[24px] shadow-2xl w-full max-w-lg flex flex-col overflow-hidden border border-white/60 animate-fadeIn">
+            <div className="bg-white rounded-[24px] shadow-2xl w-full max-w-lg flex flex-col overflow-hidden border border-white/60 animate-fadeIn text-left">
                 <div className="bg-[#212c46] px-6 py-4 flex justify-between items-center text-white shrink-0">
                     <div className="flex items-center gap-2">
                         <Mail className="text-[#d1a45f]" size={18} />
@@ -529,20 +625,58 @@ const SupplierQuickRequestModal = ({ isOpen, onClose, cert, onConfirm }: any) =>
                     </div>
                     <button onClick={onClose} className="p-1 hover:bg-white/10 rounded-full text-white"><X size={18}/></button>
                 </div>
-                <div className="p-6 space-y-4">
-                    <div className="p-4 bg-orange-50 border border-orange-200 rounded-xl space-y-1">
-                        <p className="text-[11px] font-black text-orange-850 uppercase flex items-center gap-1.5"><AlertTriangle size={12}/> Request Action Required</p>
-                        <p className="text-[11px] text-orange-900">You are initiating a documentation renewal request to <span className="font-bold">{cert.supplier}</span>. This will automatically update the communication dispatch register logs.</p>
+                <div className="p-6 space-y-4 overflow-y-auto max-h-[70vh] custom-scrollbar">
+                    
+                    {/* Send Mode Alert */}
+                    {hasGmail ? (
+                        <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-xl space-y-1 text-emerald-850">
+                            <p className="text-[11px] font-black uppercase flex items-center gap-1.5">
+                                <CheckCircle2 size={13} className="text-emerald-600" /> Gmail Mode: Real Outbound Active
+                            </p>
+                            <p className="text-[10px] text-emerald-700">
+                                อีเมลแจ้งเตือนนี้จะส่งออกจากบัญชีจริง: <strong className="font-mono">{gmailUser?.email}</strong>
+                            </p>
+                        </div>
+                    ) : (
+                        <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl space-y-2 text-amber-850">
+                            <div className="flex justify-between items-center">
+                                <p className="text-[11px] font-black uppercase flex items-center gap-1.5">
+                                    <AlertTriangle size={13} className="text-amber-600" /> Connection Alert
+                                </p>
+                                <button 
+                                    onClick={handleGmailSignIn}
+                                    className="px-2 py-0.5 bg-white border border-amber-300 text-amber-900 rounded font-black text-[9px] hover:bg-gray-50 uppercase"
+                                >
+                                    Log In Gmail
+                                </button>
+                            </div>
+                            <p className="text-[10px] text-amber-950">
+                                ระบบทำงานบนโหมดจำลอง คุณสามารถเชื่อมต่อ Gmail ของคุณเพื่อใช้จัดส่งอีเมล์จริงได้
+                            </p>
+                        </div>
+                    )}
+
+                    <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-[#7a8b95] uppercase block">Recipient Email (อีเมลผู้จัดจำหน่าย/Supplier)</label>
+                        <input 
+                            type="email" 
+                            required
+                            placeholder="supplier.qa@company.com"
+                            value={recipientEmail}
+                            onChange={e=>setRecipientEmail(e.target.value)}
+                            className="w-full bg-[#f8f9fa] border border-[#eaeaec] rounded-xl px-4 py-2 text-[11px] font-bold text-[#212c46] outline-none focus:border-[#d1a45f]"
+                        />
                     </div>
                     
                     <div className="space-y-1">
-                        <label className="text-[10px] font-black text-[#7a8b95] uppercase block">Draft Request Note (ส่งถึงผู้สัญจร/Supplier)</label>
+                        <label className="text-[10px] font-black text-[#7a8b95] uppercase block">Draft Request Note (เนื้อหาร่างคำร้องสำหรับ Supplier)</label>
                         <textarea 
                             value={customMsg}
                             onChange={e=>setCustomMsg(e.target.value)}
-                            className="w-full h-44 p-3 border border-[#eaeaec] rounded-xl text-[11px] font-semibold outline-none focus:border-[#d1a45f] resize-none leading-relaxed"
+                            className="w-full h-36 p-3 border border-[#eaeaec] rounded-xl text-[11px] font-semibold outline-none focus:border-[#d1a45f] resize-none leading-relaxed"
                         />
                     </div>
+
                     <div className="grid grid-cols-2 gap-3 text-[10px] font-black">
                         <div className="bg-gray-50 border border-[#eaeaec] p-2.5 rounded-lg">
                             <span className="text-gray-400 uppercase block leading-none mb-1">Raw Material</span>
@@ -553,15 +687,33 @@ const SupplierQuickRequestModal = ({ isOpen, onClose, cert, onConfirm }: any) =>
                             <span className="text-[#212c46] uppercase">{cert.hcb} ({cert.countryHcb})</span>
                         </div>
                     </div>
+
+                    {statusText && (
+                        <div className={`p-3 rounded-xl border text-[11px] font-bold ${
+                            statusType === 'SUCCESS' ? 'bg-emerald-50 border-emerald-100 text-emerald-800' : 'bg-rose-50 border-[#eaeaec] text-rose-800'
+                        }`}>
+                            {statusText}
+                        </div>
+                    )}
                 </div>
                 <div className="px-6 py-4 bg-gray-50 border-t border-[#eaeaec] flex justify-end gap-3 font-sans shrink-0">
                     <button onClick={onClose} className="px-5 py-2 bg-white border border-[#eaeaec] text-[#7a8b95] rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-gray-100">Cancel</button>
                     <button 
                         id="btn-confirm-supplier-request"
-                        onClick={() => { onConfirm(cert.id, customMsg); onClose(); }} 
-                        className="bg-[#212c46] text-[#d1a45f] px-6 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-[#1c273e] flex items-center gap-2"
+                        onClick={handleSendAction} 
+                        disabled={isSending}
+                        className="bg-[#212c46] text-[#d1a45f] px-6 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-[#1c273e] flex items-center gap-2 cursor-pointer disabled:opacity-50"
                     >
-                        <Send size={12}/> Dispatch Request Email
+                        {isSending ? (
+                            <>
+                                <div className="w-3 h-3 border-2 border-t-transparent border-[#d1a45f] rounded-full animate-spin"></div>
+                                Sending...
+                            </>
+                        ) : (
+                            <>
+                                <Send size={12}/> {hasGmail ? 'Send Real Mail' : 'Dispatch Simulation'}
+                            </>
+                        )}
                     </button>
                 </div>
             </div>
@@ -593,6 +745,7 @@ const FeedbackToast = ({ isOpen, msg, onClose }: any) => {
 
 import { useLanguage } from '../../../context/LanguageContext';
 import { useNotifications } from '../../../context/NotificationContext';
+import SkeletonLoading from '../../../components/shared/SkeletonLoading';
 
 export default function HalalCertificates() {
   const { t } = useLanguage();
@@ -600,11 +753,18 @@ export default function HalalCertificates() {
   const { halalCerts, updateHalalCerts, referenceDate } = useNotifications();
   const [certs, setCerts] = useState(halalCerts.length > 0 ? halalCerts : INITIAL_HALAL_CERTS);
 
+  const [isLoading, setIsLoading] = useState(true);
+  useEffect(() => {
+    const timer = setTimeout(() => setIsLoading(false), 600);
+    return () => clearTimeout(timer);
+  }, []);
+
   useEffect(() => {
     if (halalCerts.length > 0) {
       setCerts(halalCerts);
     }
   }, [halalCerts]);
+
   const [activeMainTab, setActiveMainTab] = useState('table');
   const [filterStatus, setFilterStatus] = useState('ALL');
   const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState(false);
@@ -614,6 +774,7 @@ export default function HalalCertificates() {
   const [isGuideOpen, setIsGuideOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [qrCert, setQrCert] = useState<any>(null);
   const [previewCert, setPreviewCert] = useState<any>(null);
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
@@ -649,6 +810,73 @@ export default function HalalCertificates() {
       const certificate = certs.find(c => c.id === id);
       setToastMessage(`Sent official request to ${certificate?.supplier || 'vendor'} successfully!`);
       setIsToastOpen(true);
+  };
+
+  const handleScanSuccess = (decodedText: string) => {
+    console.log("Scanned text successfully:", decodedText);
+    
+    // Check if the decoded text contains is a URL and extract the certId query parameter
+    let targetId = decodedText;
+    try {
+      if (decodedText.startsWith('http')) {
+        const urlObj = new URL(decodedText);
+        const certIdParam = urlObj.searchParams.get('certId');
+        if (certIdParam) {
+          targetId = certIdParam;
+        }
+      }
+    } catch (e) {
+      console.error("Failed to parse URL, matching text directly", e);
+    }
+
+    // Try to find a matching certificate by:
+    // 1. ID (HL-xxxxx)
+    // 2. Certificate Number (c.certNo)
+    // 3. Or a case-insensitive matching in Material
+    const foundCert = certs.find(c => 
+      c.id.toLowerCase().trim() === targetId.toLowerCase().trim() ||
+      c.certNo.toLowerCase().trim() === targetId.toLowerCase().trim() ||
+      (targetId.length > 3 && c.certNo.toLowerCase().includes(targetId.toLowerCase())) ||
+      c.material.toLowerCase().trim() === targetId.toLowerCase().trim()
+    );
+
+    if (foundCert) {
+      // Instantly open details
+      setActiveItem(foundCert);
+      setIsScannerOpen(false);
+      setIsModalOpen(true);
+      setToastMessage(`SUCCESS: Identified Halal dossier for ${foundCert.material}!`);
+      setIsToastOpen(true);
+    } else {
+      // If not, ask the user to link/register
+      Swal.fire({
+        title: 'HALAL DOSSIER UNRESOLVED',
+        html: `No record found for <span class="font-mono font-bold text-[#932c2e]">${targetId}</span>.<br/><br/>Would you like to register a new Halal certificate and link it to this scanner input?`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'YES, REGISTER NEW',
+        cancelButtonText: 'CANCEL',
+        confirmButtonColor: '#212c46',
+        cancelButtonColor: '#7a8b95'
+      }).then((result) => {
+        if (result.isConfirmed) {
+          setActiveItem({
+            material: '',
+            supplier: '',
+            certNo: targetId, // Pre-link scanned barcode/QR value
+            countryOrigin: 'Thailand',
+            hcb: '',
+            countryHcb: '',
+            issueDate: '',
+            expiryDate: '',
+            hcbStatus: [],
+            emailNotes: ''
+          });
+          setIsScannerOpen(false);
+          setIsModalOpen(true);
+        }
+      });
+    }
   };
 
   useEffect(() => {
@@ -718,6 +946,10 @@ export default function HalalCertificates() {
     setIsModalOpen(false);
     setActiveItem(null);
   };
+
+  if (isLoading) {
+    return <SkeletonLoading layout="dashboard" />;
+  }
 
   return (
     <div className="flex flex-1 w-full flex-col animate-fadeIn bg-transparent space-y-4 relative">
@@ -798,15 +1030,80 @@ export default function HalalCertificates() {
         <div className="p-6">
           <CsvUpload 
             onUpload={(data) => {
-              // Simulated upload - we'd normally connect this to a backend or state array
-              console.log("Bulk upload Halal data:", data);
-              alert(`${data.length} certificates registered successfully via batch import.`);
+              console.log("Bulk upload Halal data from component:", data);
+              let updatedCount = 0;
+              let insertedCount = 0;
+
+              // Copy of current certs to mutate/merge
+              let tempCerts = [...certs];
+
+              data.forEach((row, index) => {
+                const material = row["Material"] || row["material"] || "";
+                const supplier = row["Supplier"] || row["supplier"] || "";
+                const issueDate = row["Issue Date"] || row["issueDate"] || row["IssueDate"] || "";
+                const expiryDate = row["Expiry Date"] || row["expiryDate"] || row["ExpiryDate"] || "";
+                const hcb = row["Certification Body"] || row["hcb"] || row["CertificationBody"] || "CICOT";
+                const certNo = row["Cert No"] || row["certNo"] || row["Certificate Number"] || `CICOT.HL-${Math.floor(1000 + Math.random()*9000)}`;
+                const countryOrigin = row["Country Origin"] || row["countryOrigin"] || "Thailand";
+                const countryHcb = row["Country HCB"] || row["countryHcb"] || "Thailand";
+
+                if (!material || !supplier) return;
+
+                // Find existing cert with matching Material AND Supplier
+                const existingIndex = tempCerts.findIndex(
+                  c => c.material.toLowerCase().trim() === material.toLowerCase().trim() &&
+                       c.supplier.toLowerCase().trim() === supplier.toLowerCase().trim()
+                );
+
+                if (existingIndex !== -1) {
+                  // Update existing
+                  tempCerts[existingIndex] = {
+                    ...tempCerts[existingIndex],
+                    issueDate: issueDate || tempCerts[existingIndex].issueDate,
+                    expiryDate: expiryDate || tempCerts[existingIndex].expiryDate,
+                    hcb: hcb || tempCerts[existingIndex].hcb,
+                    certNo: certNo || tempCerts[existingIndex].certNo,
+                    countryOrigin: countryOrigin || tempCerts[existingIndex].countryOrigin,
+                    countryHcb: countryHcb || tempCerts[existingIndex].countryHcb,
+                  };
+                  updatedCount++;
+                } else {
+                  // Insert new
+                  tempCerts.unshift({
+                    id: `HL-${Math.floor(26000 + Math.random() * 5000 + index)}`,
+                    material,
+                    supplier,
+                    certNo,
+                    countryOrigin,
+                    hcb,
+                    countryHcb,
+                    issueDate,
+                    expiryDate,
+                    file: 'uploaded_cert.pdf',
+                    hcbStatus: [`${hcb} recognise`],
+                    emailSent: false,
+                  });
+                  insertedCount++;
+                }
+              });
+
+              setCerts(tempCerts);
+              updateHalalCerts(tempCerts);
+              
+              setToastMessage(`Bulk operation complete: Updated ${updatedCount} and added ${insertedCount} certificates!`);
+              setIsToastOpen(true);
               setIsCsvModalOpen(false);
             }}
             requiredHeaders={["Material", "Supplier", "Issue Date", "Expiry Date", "Certification Body", "Status"]} 
           />
         </div>
       </DraggableModal>
+
+      <CameraScanner 
+        isOpen={isScannerOpen} 
+        onClose={() => setIsScannerOpen(false)} 
+        onScanSuccess={handleScanSuccess} 
+      />
 
       <NotificationPanel isOpen={isNotifyOpen} onClose={() => setIsNotifyOpen(false)} alerts={criticalAlerts} onPreview={() => { setIsNotifyOpen(false); setIsEmailPreviewOpen(true); }} />
 
@@ -954,8 +1251,9 @@ export default function HalalCertificates() {
                             </div>
                         </div>
                         <div className="flex gap-2">
-                            <button onClick={() => setIsCsvModalOpen(true)} className="h-10 bg-white border border-[#eaeaec] hover:border-[#1c273e] hover:bg-[#f8f9fa] text-[#212c46] px-6 rounded-xl font-black text-[11px] uppercase tracking-widest shadow-sm transition-all flex items-center gap-2 shrink-0"><Upload size={16}/> BULK UPLOAD</button>
-                            <button onClick={()=>{setActiveItem(null); setIsModalOpen(true);}} className="h-10 bg-[#212c46] hover:bg-[#1c273e] text-white px-6 rounded-xl font-black text-[11px] uppercase tracking-widest shadow-md transition-all flex items-center gap-2 shrink-0"><Plus size={16}/> REGISTER RM HALAL</button>
+                            <button onClick={() => setIsScannerOpen(true)} className="h-10 bg-[#d1a45f]/10 border border-[#d1a45f]/30 hover:border-[#d1a45f] hover:bg-[#d1a45f]/20 text-[#212c46] px-5 rounded-xl font-black text-[11px] uppercase tracking-widest shadow-sm transition-all flex items-center gap-2 shrink-0"><Camera size={14} className="text-[#b58c4f]"/> CAMERA SCANNER</button>
+                            <button onClick={() => setIsCsvModalOpen(true)} className="h-10 bg-white border border-[#eaeaec] hover:border-[#1c273e] hover:bg-[#f8f9fa] text-[#212c46] px-5 rounded-xl font-black text-[11px] uppercase tracking-widest shadow-sm transition-all flex items-center gap-2 shrink-0"><Upload size={14}/> BULK UPLOAD</button>
+                            <button onClick={()=>{setActiveItem(null); setIsModalOpen(true);}} className="h-10 bg-[#212c46] hover:bg-[#1c273e] text-white px-6 rounded-xl font-black text-[11px] uppercase tracking-widest shadow-md transition-all flex items-center gap-2 shrink-0"><Plus size={14}/> REGISTER RM HALAL</button>
                         </div>
                     </div>
 

@@ -228,6 +228,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }: SidebarProps) {
                               <NavLink
                                 key={subItem.id}
                                 to={subItem.path}
+                                end
                                 className={({ isActive }) => twMerge(clsx(
                                   "group flex items-center gap-2 py-1.5 px-3 rounded-lg text-[11px] font-bold uppercase transition-all tracking-[0.05em]",
                                   isActive 

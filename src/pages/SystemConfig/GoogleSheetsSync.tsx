@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import UserGuideButton from '../../components/shared/UserGuideButton';
 import KpiCard from '../../components/shared/KpiCard';
 import Swal from 'sweetalert2';
+import SkeletonLoading from '../../components/shared/SkeletonLoading';
 import { initAuth, googleSignIn, logout } from '../../firebase';
 import { 
   Database,
@@ -22,6 +23,7 @@ import {
   BookOpen,
   Settings,
   HelpCircle,
+  Mail,
   X
 } from 'lucide-react';
 
@@ -86,6 +88,12 @@ function UserGuidePanel({ isOpen, onClose }: any) {
 export default function GoogleSheetsSync() {
   const [isGuideOpen, setIsGuideOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setIsLoading(false), 500);
+    return () => clearTimeout(timer);
+  }, []);
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [spreadsheetId, setSpreadsheetId] = useState(() => {
     return localStorage.getItem('cfg_target_spreadsheet_id') || '1L7smTyoFDIRaQk-NDivYTMwgQ52V4ezSfagWOIR6x0s';
@@ -429,6 +437,10 @@ export default function GoogleSheetsSync() {
     return appsScriptUrl && appsScriptUrl.includes('/exec') ? 'ACTIVE' : 'PENDING';
   }, [appsScriptUrl]);
 
+  if (isLoading) {
+    return <SkeletonLoading layout="dashboard" />;
+  }
+
   return (
     <div className="flex flex-1 w-full flex-col animate-fadeIn bg-transparent space-y-4">
       {/* USER GUIDE FLOATING TAB */}
@@ -458,27 +470,38 @@ export default function GoogleSheetsSync() {
 
       <div className="w-full px-4 sm:px-8 flex-1 flex flex-col min-h-0">
         {/* Standardized KPI Overview Row */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3 shrink-0">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-3 shrink-0">
           <KpiCard 
-            label="Apps Script Link Status" 
+            label="Google Sheets Sync" 
+            value={user && spreadsheetId ? "CONNECTED" : "PENDING"} 
+            icon="file-spreadsheet" 
+            colorAccent="#657f4d" 
+            colorValue="#212c46"
+            desc="Active DB Stream" 
+          />
+          <KpiCard 
+            label="Google Drive Sync" 
+            value={user ? "CONNECTED" : "ANONYMOUS"} 
+            icon="hard-drive" 
+            colorAccent="#3f809e" 
+            colorValue="#212c46"
+            desc="Attachment Store" 
+          />
+          <KpiCard 
+            label="Gmail Outbound" 
+            value={user ? "INTEGRATED" : "READY"} 
+            icon="mail" 
+            colorAccent="#b58c4f" 
+            colorValue="#212c46"
+            desc="Automated Dispatch" 
+          />
+          <KpiCard 
+            label="Apps Script Link" 
             value={activeAppScriptUrlStatus} 
-            icon={Globe} 
-            colorAccent={activeAppScriptUrlStatus === 'ACTIVE' ? '#657f4d' : '#932c2e'} 
-            desc={appsScriptUrl ? 'URL custom configured' : 'Using default deployment'} 
-          />
-          <KpiCard 
-            label="Google Authorization" 
-            value={user ? 'AUTHENTICATED' : 'ANONYMOUS'} 
-            icon={UserCheck} 
-            colorAccent={user ? '#3f809e' : '#7a8b95'} 
-            desc={user ? user.email : 'Click log in below to authorize setup'} 
-          />
-          <KpiCard 
-            label="Session Safety Duration" 
-            value={`${(cfgSessionDuration / 60).toFixed(0)} MINS`} 
-            icon={Lock} 
-            colorAccent="#4d87a8" 
-            desc={`Warning start point: ${cfgWarnThreshold}s before`} 
+            icon="globe" 
+            colorAccent={activeAppScriptUrlStatus === 'ACTIVE' ? '#4d87a8' : '#932c2e'} 
+            colorValue={activeAppScriptUrlStatus === 'ACTIVE' ? '#212c46' : '#932c2e'} 
+            desc={appsScriptUrl ? 'URL custom OK' : 'Default connection'} 
           />
         </div>
 
@@ -667,6 +690,64 @@ export default function GoogleSheetsSync() {
                     <span>Sign in with Google</span>
                   </button>
                 )}
+              </div>
+            </div>
+
+            {/* Google Services Integrations Detail Matrices ( Thai Descriptions ) */}
+            <div className="space-y-4 pt-4 border-t border-[#eaeaec]">
+              <h4 className="text-[11px] font-black text-[#7a8b95] uppercase tracking-[0.15em] text-left">
+                Google APIs Sync Matrix
+              </h4>
+              <div className="grid grid-cols-1 gap-3">
+                
+                {/* Google Sheets */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-emerald-50/20 border border-emerald-100 rounded-xl text-left gap-2">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 bg-emerald-100/40 text-emerald-700 rounded-lg flex items-center justify-center border border-emerald-100/50 shadow-sm shrink-0">
+                      <FileSpreadsheet size={18} />
+                    </div>
+                    <div>
+                      <p className="text-[12px] font-black text-[#212c46] uppercase tracking-wider">Google Sheets API</p>
+                      <p className="text-[10px] font-bold text-slate-500 leading-tight">เชื่อมสารบบพนักงาน-ใบรับรองและสิทธิ์พนักงานทั้งหมด</p>
+                    </div>
+                  </div>
+                  <span className={`px-2 py-0.5 rounded-full text-[9px] font-black tracking-wider uppercase self-start sm:self-center ${user && spreadsheetId ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-amber-50 text-amber-700 border border-amber-100'}`}>
+                    {user && spreadsheetId ? 'CONNECTED' : 'PENDING'}
+                  </span>
+                </div>
+
+                {/* Google Drive */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-sky-50/20 border border-sky-100 rounded-xl text-left gap-2">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 bg-sky-100/40 text-sky-700 rounded-lg flex items-center justify-center border border-sky-100/50 shadow-sm shrink-0">
+                      <Database size={18} />
+                    </div>
+                    <div>
+                      <p className="text-[12px] font-black text-[#212c46] uppercase tracking-wider">Google Drive Cloud Storage</p>
+                      <p className="text-[10px] font-bold text-slate-500 leading-tight">จัดเก็บใบรับรอง มอก. มกอช. และ HALAL PDF ในคลาวด์</p>
+                    </div>
+                  </div>
+                  <span className={`px-2 py-0.5 rounded-full text-[9px] font-black tracking-wider uppercase self-start sm:self-center ${user ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-amber-50 text-amber-700 border border-amber-100'}`}>
+                    {user ? 'CONNECTED' : 'PENDING'}
+                  </span>
+                </div>
+
+                {/* Gmail API */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-amber-50/20 border border-amber-100 rounded-xl text-left gap-2">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 bg-amber-100/40 text-amber-700 rounded-lg flex items-center justify-center border border-amber-100/50 shadow-sm shrink-0">
+                      <Mail size={18} />
+                    </div>
+                    <div>
+                      <p className="text-[12px] font-black text-[#212c46] uppercase tracking-wider">Gmail Dispatch Engine</p>
+                      <p className="text-[10px] font-bold text-slate-500 leading-tight">จัดส่งอีเมลแจ้งเตือนการหมดอายุของใบรับรองหา Supplier</p>
+                    </div>
+                  </div>
+                  <span className={`px-2 py-0.5 rounded-full text-[9px] font-black tracking-wider uppercase self-start sm:self-center ${user ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-amber-50 text-amber-700 border border-amber-100'}`}>
+                    {user ? 'INTEGRATED' : 'SIMULATION'}
+                  </span>
+                </div>
+
               </div>
             </div>
           </div>

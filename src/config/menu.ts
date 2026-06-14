@@ -71,7 +71,8 @@ export const MENU_ITEMS: MenuItem[] = [
       { id: 'google_sheets_sync', name: 'GOOGLE SHEETS SYNC', nameTh: 'ซิงค์ Google Sheets', path: '/settings/sheets-sync' },
       { id: 'background_auto_sync', name: 'AUTO SYNC', nameTh: 'ซิงค์อัตโนมัติ', path: '/settings/auto-sync' },
       { id: 'system_backups', name: 'SYSTEM BACKUPS', nameTh: 'การสำรองข้อมูลระบบ', path: '/settings/backups' },
-      { id: 'report_format', name: 'REPORT FORMAT', nameTh: 'รูปแบบรายงาน', path: '/settings/report-format' }
+      { id: 'report_format', name: 'REPORT FORMAT', nameTh: 'รูปแบบรายงาน', path: '/settings/report-format' },
+      { id: 'gmail_settings', name: 'GMAIL INTEGRATION', nameTh: 'ตั้งค่าระบบ Gmail', path: '/settings/gmail' }
     ]
   }
 ];

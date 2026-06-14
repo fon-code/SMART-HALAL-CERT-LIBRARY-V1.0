@@ -1340,9 +1340,10 @@ export default function ReportFormat() {
               </div>
             ) : (
               /* TAB 2: INLINED FULL-SCREEN CONFIGURATION CENTER (INDEPENDENT OF MODAL) */
-              <div className="bg-white border border-[#eaeaec] rounded-2xl shadow-xl flex flex-col md:flex-row min-h-[540px] text-left animate-fadeIn mb-8 overflow-hidden">
-                {/* LEFT VERTICAL SIDE-TAB MENU */}
-                <div className="w-full md:w-64 bg-slate-50 border-r border-[#eaeaec] p-5 flex flex-col justify-between shrink-0">
+              <div className="bg-white border border-[#eaeaec] rounded-2xl shadow-xl flex flex-col min-h-[540px] text-left animate-fadeIn mb-8 overflow-hidden">
+                <div className="flex flex-col md:flex-row flex-1 min-h-[540px]">
+                  {/* LEFT VERTICAL SIDE-TAB MENU */}
+                  <div className="w-full md:w-64 bg-slate-50 border-r border-[#eaeaec] p-5 flex flex-col justify-between shrink-0">
                   <div className="space-y-1.5">
                     <span className="text-[10px] font-black text-[#7a8b95] uppercase tracking-widest block px-2.5 mb-2">Category Tabs</span>
                     
@@ -2047,9 +2048,10 @@ export default function ReportFormat() {
                   )}
 
                 </div>
+              </div>
 
-                {/* Inline form save & action banner */}
-                <div className="p-4 bg-slate-50 border-t border-[#eaeaec] flex justify-end gap-3 rounded-b-2xl md:col-span-12 w-full shrink-0">
+              {/* Inline form save & action banner */}
+              <div className="p-4 bg-slate-50 border-t border-[#eaeaec] flex justify-end gap-3 rounded-b-2xl md:col-span-12 w-full shrink-0">
                   <button
                     type="button"
                     onClick={() => setActiveMainTab('preview')}

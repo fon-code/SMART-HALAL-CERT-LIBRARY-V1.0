@@ -13,6 +13,7 @@ import {
   Cpu, FileSignature, Link2, PenTool, MapPin, Database, QrCode, RefreshCw
 } from 'lucide-react';
 import { initAuth, googleSignIn, logout, getAccessToken } from '../../../firebase';
+import { sendGmailMessage } from '../../../services/gmailService';
 import { syncDossierRecord } from '../../../syncServices';
 import { DraggableModal } from '../../../components/shared/DraggableModal';
 import { CsvUpload } from '../../../components/shared/CsvUpload';
@@ -368,18 +369,110 @@ const CustomConfigModal = ({ isOpen, title, items, onSave, onDelete, onClose }: 
 // In-app official confirmation popup for dispatch actions (satisfies iframe sandbox, avoids window.alert/confirm)
 const SupplierQuickRequestModal = ({ isOpen, onClose, cert, onConfirm }: any) => {
     const [customMsg, setCustomMsg] = useState('');
-    
+    const [recipientEmail, setRecipientEmail] = useState('fon.phichamon@gmail.com');
+    const [hasGmail, setHasGmail] = useState(false);
+    const [gmailUser, setGmailUser] = useState<any>(null);
+    const [isSending, setIsSending] = useState(false);
+    const [statusText, setStatusText] = useState('');
+    const [statusType, setStatusType] = useState<'SUCCESS' | 'ERROR' | ''>('');
+
     useEffect(() => {
         if (cert) {
             setCustomMsg(`เรียน แผนกตรวจสอบคุณภาพและรับรองของ บริษัท ${cert.supplier},\n\nเนื่องด้วย ทางบริษัทฯ ตรวจพบว่าใบรับรองมาตรฐาน ${cert.msType} ของวัตถุดิบ ${cert.material} (รหัสใบอนุญาต: ${cert.certNo || 'N/A'}) กำลังจะหมดอายุหรือหมดอายุลงแล้วในวันที่ ${cert.expiryDate}.\n\nจึงใคร่ขอความอนุเคราะห์จากท่านในการจัดส่งใบรับรองฉบับปรับปรุงใหม่ล่าสุด หรือหนังสือยืนยันสถานะการตรวจประเมิน เพื่อทางเราจะนำเข้าระบบทะเบียนผู้ขายต่อไป.\n\nขอแสดงความนับถือ,\nฝ่ายการประกันคุณภาพวัตถุดิบ (QA Quality Assurance Team)`);
+            
+            // Set recipient based on supplier name or default nicely
+            const slug = cert.supplier.toLowerCase().replace(/[^a-z]/g, '');
+            setRecipientEmail(`${slug || 'supplier'}@t-all-intelligence.com`);
         }
     }, [cert]);
+
+    useEffect(() => {
+        if (isOpen) {
+            initAuth(
+                (user) => {
+                    setHasGmail(true);
+                    setGmailUser(user);
+                },
+                () => {
+                    setHasGmail(false);
+                    setGmailUser(null);
+                }
+            );
+        }
+    }, [isOpen]);
+
+    const handleGmailSignIn = async () => {
+        try {
+            await googleSignIn();
+            initAuth(
+                (user) => {
+                    setHasGmail(true);
+                    setGmailUser(user);
+                }
+            );
+        } catch (e) {
+            console.error('Failed to sign in', e);
+        }
+    };
+
+    const handleSendAction = async () => {
+        if (!recipientEmail) {
+            setStatusType('ERROR');
+            setStatusText('โปรดกรอกที่อยู่อีเมลผู้รับ');
+            return;
+        }
+
+        setIsSending(true);
+        setStatusText('');
+        setStatusType('');
+
+        try {
+            if (hasGmail) {
+                const subject = `[Notification] เอกสารรับรองมาตรฐาน ${cert.msType} สำหรับวัตถุดิบ ${cert.material} กำลังจะหมดอายุ`;
+                await sendGmailMessage(recipientEmail, subject, customMsg);
+                
+                // Track in our log registry of Gmail Integration page
+                const savedLogs = localStorage.getItem('smartcert_gmail_logs');
+                const parsedLogs = savedLogs ? JSON.parse(savedLogs) : [];
+                const newLog = {
+                    id: `LOG-${Date.now()}`,
+                    recipient: recipientEmail,
+                    subject: subject,
+                    timestamp: new Date().toISOString(),
+                    status: 'SUCCESS',
+                };
+                localStorage.setItem('smartcert_gmail_logs', JSON.stringify([newLog, ...parsedLogs].slice(0, 50)));
+
+                setStatusType('SUCCESS');
+                setStatusText('อีเมลส่งออกจริงผ่านบริการ Gmail API สำเร็จแล้ว!');
+            } else {
+                // Mock fallback
+                setStatusType('SUCCESS');
+                setStatusText('ส่งอีเมลแจ้งเตือนจำลองในระบบเรียบร้อย (ไม่ได้ส่งจริงเนื่องจากไม่ได้เข้าสู่ระบบ)');
+            }
+
+            // Let parent component know to update system register and show toast
+            setTimeout(() => {
+                onConfirm(cert.id, customMsg, recipientEmail, hasGmail);
+                onClose();
+                setStatusText('');
+                setStatusType('');
+            }, 1800);
+
+        } catch (error: any) {
+            console.error(error);
+            setStatusType('ERROR');
+            setStatusText(`ส่งอีเมลล้มเหลว: ${error.message || 'ตรวจพบบัญชีไม่มีสิทธิ์เขียนอีเมล'}`);
+        } finally {
+            setIsSending(false);
+        }
+    };
 
     if (!isOpen || !cert) return null;
 
     return createPortal(
         <div id="quick-request-modal" className="fixed inset-0 z-[1500] flex items-center justify-center bg-[#212c46]/60 backdrop-blur-sm p-4">
-            <div className="bg-white rounded-[24px] shadow-2xl w-full max-w-lg flex flex-col overflow-hidden border border-white/60 animate-fadeIn">
+            <div className="bg-white rounded-[24px] shadow-2xl w-full max-w-lg flex flex-col overflow-hidden border border-white/60 animate-fadeIn text-left">
                 <div className="bg-[#212c46] px-6 py-4 flex justify-between items-center text-white shrink-0">
                     <div className="flex items-center gap-2">
                         <Mail className="text-[#d1a45f]" size={18} />
@@ -387,20 +480,58 @@ const SupplierQuickRequestModal = ({ isOpen, onClose, cert, onConfirm }: any) =>
                     </div>
                     <button onClick={onClose} className="p-1 hover:bg-white/10 rounded-full text-white"><X size={18}/></button>
                 </div>
-                <div className="p-6 space-y-4">
-                    <div className="p-4 bg-orange-50 border border-orange-200 rounded-xl space-y-1">
-                        <p className="text-[11px] font-black text-orange-850 uppercase flex items-center gap-1.5"><AlertTriangle size={12}/> Request Action Required</p>
-                        <p className="text-[11px] text-orange-900">You are initiating a documentation renewal request to <span className="font-bold">{cert.supplier}</span>. This will automatically update the communication dispatch register logs.</p>
+                <div className="p-6 space-y-4 overflow-y-auto max-h-[70vh] custom-scrollbar">
+                    
+                    {/* Send Mode Alert */}
+                    {hasGmail ? (
+                        <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-xl space-y-1 text-emerald-850">
+                            <p className="text-[11px] font-black uppercase flex items-center gap-1.5">
+                                <CheckCircle2 size={13} className="text-emerald-600" /> Gmail Mode: Real Outbound Active
+                            </p>
+                            <p className="text-[10px] text-emerald-700">
+                                อีเมลแจ้งเตือนนี้จะส่งออกจากบัญชีจริง: <strong className="font-mono">{gmailUser?.email}</strong>
+                            </p>
+                        </div>
+                    ) : (
+                        <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl space-y-2 text-amber-850">
+                            <div className="flex justify-between items-center">
+                                <p className="text-[11px] font-black uppercase flex items-center gap-1.5">
+                                    <AlertTriangle size={13} className="text-amber-600" /> Connection Alert
+                                </p>
+                                <button 
+                                    onClick={handleGmailSignIn}
+                                    className="px-2 py-0.5 bg-white border border-amber-300 text-amber-900 rounded font-black text-[9px] hover:bg-gray-50 uppercase"
+                                >
+                                    Log In Gmail
+                                </button>
+                            </div>
+                            <p className="text-[10px] text-amber-950">
+                                ระบบทำงานบนโหมดจำลอง คุณสามารถเชื่อมต่อ Gmail ของคุณเพื่อใช้จัดส่งอีเมล์จริงได้
+                            </p>
+                        </div>
+                    )}
+
+                    <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-[#7a8b95] uppercase block">Recipient Email (อีเมลผู้จัดจำหน่าย/Supplier)</label>
+                        <input 
+                            type="email" 
+                            required
+                            placeholder="supplier.qa@company.com"
+                            value={recipientEmail}
+                            onChange={e=>setRecipientEmail(e.target.value)}
+                            className="w-full bg-[#f8f9fa] border border-[#eaeaec] rounded-xl px-4 py-2 text-[11px] font-bold text-[#212c46] outline-none focus:border-[#d1a45f]"
+                        />
                     </div>
                     
                     <div className="space-y-1">
-                        <label className="text-[10px] font-black text-[#7a8b95] uppercase block">Draft Request Note (ส่งถึงผู้สัญจร/Supplier)</label>
+                        <label className="text-[10px] font-black text-[#7a8b95] uppercase block">Draft Request Note (เนื้อหาร่างคำร้องสำหรับ Supplier)</label>
                         <textarea 
                             value={customMsg}
                             onChange={e=>setCustomMsg(e.target.value)}
-                            className="w-full h-44 p-3 border border-[#eaeaec] rounded-xl text-[11px] font-semibold outline-none focus:border-[#d1a45f] resize-none leading-relaxed"
+                            className="w-full h-36 p-3 border border-[#eaeaec] rounded-xl text-[11px] font-semibold outline-none focus:border-[#d1a45f] resize-none leading-relaxed"
                         />
                     </div>
+
                     <div className="grid grid-cols-2 gap-3 text-[10px] font-black">
                         <div className="bg-gray-50 border border-[#eaeaec] p-2.5 rounded-lg">
                             <span className="text-gray-400 uppercase block leading-none mb-1">Raw Material</span>
@@ -411,15 +542,33 @@ const SupplierQuickRequestModal = ({ isOpen, onClose, cert, onConfirm }: any) =>
                             <span className="text-[#212c46] uppercase">{cert.msType} (Auditor: {cert.body})</span>
                         </div>
                     </div>
+
+                    {statusText && (
+                        <div className={`p-3 rounded-xl border text-[11px] font-bold ${
+                            statusType === 'SUCCESS' ? 'bg-emerald-50 border-emerald-100 text-emerald-800' : 'bg-rose-50 border-[#eaeaec] text-rose-800'
+                        }`}>
+                            {statusText}
+                        </div>
+                    )}
                 </div>
                 <div className="px-6 py-4 bg-gray-50 border-t border-[#eaeaec] flex justify-end gap-3 font-sans shrink-0">
                     <button onClick={onClose} className="px-5 py-2 bg-white border border-[#eaeaec] text-[#7a8b95] rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-gray-100">Cancel</button>
                     <button 
                         id="btn-confirm-supplier-request"
-                        onClick={() => { onConfirm(cert.id, customMsg); onClose(); }} 
-                        className="bg-[#212c46] text-[#d1a45f] px-6 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-[#1c273e] flex items-center gap-2"
+                        onClick={handleSendAction} 
+                        disabled={isSending}
+                        className="bg-[#212c46] text-[#d1a45f] px-6 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-[#1c273e] flex items-center gap-2 cursor-pointer disabled:opacity-50"
                     >
-                        <Send size={12}/> Dispatch Request Email
+                        {isSending ? (
+                            <>
+                                <div className="w-3 h-3 border-2 border-t-transparent border-[#d1a45f] rounded-full animate-spin"></div>
+                                Sending...
+                            </>
+                        ) : (
+                            <>
+                                <Send size={12}/> {hasGmail ? 'Send Real Mail' : 'Dispatch Simulation'}
+                            </>
+                        )}
                     </button>
                 </div>
             </div>
@@ -737,12 +886,19 @@ function UserGuidePanel({ isOpen, onClose }: any) {
 
 import { useLanguage } from '../../../context/LanguageContext';
 import { useNotifications } from '../../../context/NotificationContext';
+import SkeletonLoading from '../../../components/shared/SkeletonLoading';
 
 export default function MsCertificates() {
   const { t } = useLanguage();
   const [searchParams, setSearchParams] = useSearchParams();
   const { msCerts, updateMsCerts, referenceDate } = useNotifications();
   const [certs, setCerts] = useState(msCerts.length > 0 ? msCerts : INITIAL_MS_CERTS);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setIsLoading(false), 600);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     if (msCerts.length > 0) {
@@ -929,6 +1085,10 @@ export default function MsCertificates() {
       setToastMessage(`Sent official request to ${certificate?.supplier || 'vendor'} successfully!`);
       setIsToastOpen(true);
   };
+
+  if (isLoading) {
+    return <SkeletonLoading layout="dashboard" />;
+  }
 
   return (
     <div className="flex flex-1 w-full flex-col animate-fadeIn bg-transparent space-y-4 relative font-sans">
